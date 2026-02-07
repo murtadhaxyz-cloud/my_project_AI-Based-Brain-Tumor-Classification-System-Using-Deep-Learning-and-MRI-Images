@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroScan AI - Home</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body class="home-body">
+    <!-- 3D Canvas Background -->
+    <div id="brain-canvas"></div>
+
+    <div class="home-container">
+        <header>
+            <div class="logo">NeuroScan <span class="highlight">AI</span></div>
+        </header>
+
+        <main class="hero-section">
+            <h1 class="hero-title">Next-Gen Brain <br> Tumor Detection</h1>
+            <p class="hero-desc">
+                Leveraging the power of Advanced Deep Learning (BP-NN) to assist in the early diagnosis of brain
+                abnormalities.
+                Our neural network analyzes MRI scans with high precision, providing rapid classification of Glioma,
+                Meningioma, and Pituitary tumors.
+            </p>
+
+            <a href="/analyze" class="cta-button">
+                Start Diagnosis
+                <span class="icon">➤</span>
+            </a>
+        </main>
+    </div>
+
+    <script>
+        // --- 3D Brain/Network Visualization ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+
+        const container = document.getElementById('brain-canvas');
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        // Group to hold our "Brain"
+        const brainGroup = new THREE.Group();
+        scene.add(brainGroup);
+
+        // 1. Create a dense point cloud (Neural Network representation)
+        // We distort a sphere to look slightly more organic/brain-like (simplified)
+        const geometry = new THREE.SphereGeometry(2, 64, 64);
+        const posAttribute = geometry.attributes.position;
+        const positions = [];
+
+        for (let i = 0; i < posAttribute.count; i++) {
+            const x = posAttribute.getX(i);
+            const y = posAttribute.getY(i);
+            const z = posAttribute.getZ(i);
+
+            // Simple distortion to make it less perfect sphere - longer z axis
+            // Brain-ish shape approximation
+            positions.push(x * 1, y * 0.8, z * 1.2);
+        }
+
+        const brainGeo = new THREE.BufferGeometry();
+        brainGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.03,
+            color: 0x00f3ff,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+
+        const brainMesh = new THREE.Points(brainGeo, material);
+        brainGroup.add(brainMesh);
+
+        // 2. Add some "Synapse" lines (Outer cage)
+        const wireGeo = new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(2.2, 2));
+        const wireMat = new THREE.LineBasicMaterial({
+            color: 0x1f6feb,
+            transparent: true,
+            opacity: 0.05
+        });
+        const wireMesh = new THREE.LineSegments(wireGeo, wireMat);
+        brainGroup.add(wireMesh);
+
+        // Positioning
+        brainGroup.position.x = 2; // Offset to the right
+        camera.position.z = 5;
+
+        // Interaction
+        let mouseX = 0;
+        let mouseY = 0;
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate Brain
+            brainGroup.rotation.y += 0.002;
+            brainGroup.rotation.z += 0.001;
+
+            // Mouse parallax
+            brainGroup.rotation.y += mouseX * 0.05;
+            brainGroup.rotation.x += mouseY * 0.05;
+
+            // Pulse effect
+            const time = Date.now() * 0.001;
+            const scale = 1 + Math.sin(time * 2) * 0.02;
+            brainMesh.scale.set(scale, scale, scale);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Responsive
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Adjust position for mobile
+            if (window.innerWidth < 768) {
+                brainGroup.position.x = 0;
+                brainGroup.position.y = 1;
+            } else {
+                brainGroup.position.x = 2;
+                brainGroup.position.y = 0;
+            }
+        });
+
+        // Initial check
+        if (window.innerWidth < 768) {
+            brainGroup.position.x = 0;
+            brainGroup.position.y = 1;
+        }
+
+    </script>
+</body>
+
+</html>

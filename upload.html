@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroScan AI - Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+    <!-- Background 3D Container -->
+    <div id="upload-bg-canvas"></div>
+
+    <div class="container upload-page-container">
+        <header>
+            <a href="/" class="back-link">← Back to Home</a>
+            <h1>Scan <span class="highlight">Analysis</span></h1>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <form id="upload-form">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="file-upload" name="file" accept="image/*" hidden>
+                        <label for="file-upload" class="file-label">
+                            <span class="icon"></span>
+                            <span id="file-name">Select MRI Image</span>
+                        </label>
+                    </div>
+                </form>
+                <button id="predict-btn" class="primary-btn" type="button" disabled>Analyze Scan</button>
+            </div>
+
+            <div id="result-section" class="result-hidden">
+                <div class="result-card">
+                    <h2 class="result-title">Analysis Result</h2>
+
+                    <div class="result-content-flex">
+                        <div class="result-image-container" id="result-img-container">
+                            <img id="image-preview"
+                                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                                alt="Uploaded Scan" class="result-image">
+                        </div>
+                        <div class="result-data-container">
+                            <div class="result-value" id="prediction-text">--</div>
+                            <p id="result-message" class="result-message"></p>
+
+                            <div class="confidence-section">
+                                <div class="confidence-bar-bg">
+                                    <div class="confidence-bar-fill" id="confidence-bar"></div>
+                                </div>
+                                <p class="confidence-text">Confidence: <span id="confidence-val">0%</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 University Project | BP-NN Implementation</p>
+        </footer>
+    </div>
+
+    <!-- Upload Page Logic & 3D Effect -->
+    <script>
+        // --- 3D Background Effect (Particles) ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+
+        const container = document.getElementById('upload-bg-canvas');
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        // Create Particles
+        const geometry = new THREE.BufferGeometry();
+        const particlesCount = 700;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 15; // Spread
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const material = new THREE.PointsMaterial({
+            size: 0.02,
+            color: 0x00f3ff,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const particlesMesh = new THREE.Points(geometry, material);
+        scene.add(particlesMesh);
+
+        camera.position.z = 5;
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            particlesMesh.rotation.y += 0.001;
+            particlesMesh.rotation.x += 0.0005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+
+        // --- Existing Upload Logic ---
+        const fileInput = document.getElementById('file-upload');
+        const fileName = document.getElementById('file-name');
+        const predictBtn = document.getElementById('predict-btn');
+        const resultSection = document.getElementById('result-section');
+        const predictionText = document.getElementById('prediction-text');
+        const resultMessage = document.getElementById('result-message');
+        const confidenceVal = document.getElementById('confidence-val');
+        const confidenceBar = document.getElementById('confidence-bar');
+        const imagePreview = document.getElementById('image-preview');
+        const resultImgContainer = document.getElementById('result-img-container');
+
+        // Animation function for numbers
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                // Extract number from string if needed, assumes percentage logic here
+                const val = Math.floor(progress * (end - start) + start);
+                obj.innerHTML = val + "%";
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        fileInput.addEventListener('change', function () {
+            if (this.files && this.files.length > 0) {
+                const file = this.files[0];
+                fileName.textContent = file.name;
+                predictBtn.disabled = false;
+                predictBtn.classList.add('ready');
+
+                // Image Preview
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    imagePreview.src = e.target.result;
+                    // Reset borders
+                    resultImgContainer.className = 'result-image-container';
+                }
+                reader.readAsDataURL(file);
+
+            } else {
+                fileName.textContent = "Select MRI Image";
+                predictBtn.disabled = true;
+                predictBtn.classList.remove('ready');
+                imagePreview.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+            }
+        });
+
+        predictBtn.addEventListener('click', async function () {
+            if (!fileInput.files[0]) return;
+
+            predictBtn.textContent = "Scanning...";
+            predictBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultSection.classList.remove('result-hidden');
+                    resultSection.classList.add('result-visible');
+
+                    predictionText.textContent = data.prediction;
+                    resultMessage.textContent = data.message;
+
+                    // -- Logic for Border Colors --
+                    resultImgContainer.className = 'result-image-container'; // Reset
+                    const status = data.status_type;
+
+                    if (status === 'benign') {
+                        resultImgContainer.classList.add('border-benign');
+                    } else if (status === 'malignant') {
+                        resultImgContainer.classList.add('border-malignant');
+                    } else if (status === 'healthy') {
+                        resultImgContainer.classList.add('border-healthy');
+                    }
+
+                    // Parse confidence for animation (e.g., "98.50%")
+                    const targetConf = parseFloat(data.confidence);
+
+                    // Animate Text
+                    animateValue(confidenceVal, 0, targetConf, 1500);
+
+                    // Animate Bar
+                    confidenceBar.style.width = "0%";
+                    setTimeout(() => {
+                        confidenceBar.style.width = data.confidence;
+                    }, 100);
+
+                } else {
+                    // Show error in UI instead of alert
+                    resultSection.classList.remove('result-hidden');
+                    resultSection.classList.add('result-visible');
+                    predictionText.textContent = "Error";
+                    resultMessage.textContent = data.error || "An unknown error occurred.";
+                    resultImgContainer.classList.add('border-error');
+                    confidenceVal.textContent = "0%";
+                    confidenceBar.style.width = "0%";
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // System level error
+                resultSection.classList.remove('result-hidden');
+                resultSection.classList.add('result-visible');
+                predictionText.textContent = "System Error";
+                resultMessage.textContent = "Failed to connect to the server. Please try again.";
+                resultImgContainer.classList.add('border-error');
+            } finally {
+                predictBtn.textContent = "Analyze Scan";
+                predictBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>
